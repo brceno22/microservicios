@@ -6,6 +6,7 @@ from .models import Campaign, Recipient, Template, EmailLog
 from .serializers import (
     CampaignSerializer, RecipientSerializer, TemplateSerializer, EmailLogSerializer
 )
+from .utils import send_campaign_email_sync
 
 class TemplateViewSet(viewsets.ModelViewSet):
     queryset = Template.objects.all()
@@ -18,12 +19,15 @@ class CampaignViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def run(self, request, pk=None):
         campaign = self.get_object()
-        
-        campaign.status = 'FINALIZADA'
-        campaign.save()
+    
+        if send_campaign_email_sync(campaign.id):
+            campaign.status = 'FINALIZADA'
+            campaign.save()
 
-        return Response({'status': 'Campaña iniciada', 'message': 'Los mensajes se están enviando.'})
-
+            return Response({'status': 'Campaña finalizada', 'message': 'Todos los emails se enviaron correctamente.'})
+        else:
+            return Response({'status': 'Error', 'message': 'Ocurrió un error al enviar los emails.'}, status=status.HTTP_400_BAD_REQUEST)
+    
     @action(detail=True, methods=['get'])
     def reporte(self, request, pk=None):
         campaign = self.get_object()
